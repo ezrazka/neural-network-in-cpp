@@ -1,4 +1,4 @@
-# Neural Network in C++
+# Neural Network in C++ (Currently in Progress)
 
 A simple neural network implemented in C++ with a modern CMake build system.
 

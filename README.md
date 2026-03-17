@@ -7,7 +7,9 @@ A simple neural network implemented in C++ with a modern CMake build system.
 Clone the repository and build using CMake:
 
 ```bash
-git clone <your-repo-url>
-cd <repo-name>
+git clone git@github.com:ezrazka/neural-network-in-cpp.git
+cd neural-network-in-cpp
 cmake -B build
 cmake --build build
+./build/neuralnetwork
+```

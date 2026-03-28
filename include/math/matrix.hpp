@@ -3,6 +3,8 @@
 #include "math/vector.hpp"
 
 #include <concepts>
+#include <cstddef>
+#include <cstdint>
 #include <initializer_list>
 #include <vector>
 
@@ -10,7 +12,9 @@ namespace math {
     template<std::floating_point T>
     class Matrix {
     public:
-        static Matrix identity(std::size_t n);
+        static Matrix identity(std::size_t rows, std::size_t cols);
+        Matrix random(std::size_t rows, std::size_t cols);
+        Matrix random(std::size_t rows, std::size_t cols, T min, T max);
 
         Matrix(std::size_t rows, std::size_t cols);
         Matrix(std::size_t rows, std::size_t cols, std::initializer_list<T> init);
@@ -24,15 +28,11 @@ namespace math {
         std::vector<T>::const_iterator end() const noexcept;
         std::vector<T>::iterator end() noexcept;
 
-        T determinant() const;
-        Matrix tranposed() const;
+        Matrix transposed() const;
         Matrix &transpose();
-        Matrix inverse() const;
-        Matrix &invert();
 
         Matrix hadamard(const Matrix &other) const;
         Matrix &hadamard_inplace(const Matrix &other);
-        Vector<T> solve(const Vector<T> &b) const;
 
         T at(std::size_t i, std::size_t j) const;
         T &at(std::size_t i, std::size_t j);
@@ -67,9 +67,16 @@ namespace math {
             if constexpr (sizeof(T) <= 4) return static_cast<T>(1e-5);
             return static_cast<T>(1e-9);
         }();
+        static constexpr std::size_t block_size = []() {
+            if constexpr (sizeof(T) <= 4) return 96;
+            if constexpr (sizeof(T) <= 8) return 64;
+            return -1;
+        }();
 
         std::size_t rows;
         std::size_t cols;
         std::vector<T> data;
+
+        Matrix &transpose_square();
     };
 }

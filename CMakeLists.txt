@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=x86-64-v3 -ffast-math -funroll-loops -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -funroll-loops -flto -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -Wall -Wextra -Wpedantic -fsanitize=address,undefined")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-fsanitize=address,undefined")
 

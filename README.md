@@ -2,6 +2,10 @@
 
 A simple neural network implemented in C++ with a modern CMake build system.
 
+## Requirements
+* CMake ≥3.20
+* C++20-compatible compiler (works with Clang and GCC)
+
 ## Build Instructions
 
 Clone the repository and build using CMake:

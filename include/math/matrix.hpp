@@ -1,11 +1,16 @@
 #pragma once
 
+#include "math/random.hpp"
 #include "math/vector.hpp"
 
+#include <algorithm>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <limits>
+#include <numeric>
+#include <random>
 #include <vector>
 
 namespace math {
@@ -13,16 +18,20 @@ namespace math {
     class Matrix {
     public:
         static Matrix identity(std::size_t rows, std::size_t cols);
-        Matrix random(std::size_t rows, std::size_t cols);
-        Matrix random(std::size_t rows, std::size_t cols, T min, T max);
+        static Matrix random(std::size_t rows, std::size_t cols);
+        static Matrix random(std::size_t rows, std::size_t cols, T min, T max);
 
+        Matrix() = default;
         Matrix(std::size_t rows, std::size_t cols);
-        Matrix(std::size_t rows, std::size_t cols, std::initializer_list<T> init);
         template<std::input_iterator InputIt>
         Matrix(std::size_t rows, std::size_t cols, InputIt first, InputIt last);
         Matrix(const Vector<T> &v);
+        Matrix(std::initializer_list<std::initializer_list<T>> init);
+        Matrix(std::vector<std::vector<T>> init);
 
-        std::pair<std::size_t, std::size_t> shape() const noexcept;
+        std::size_t size() const noexcept;
+        std::size_t rows() const noexcept;
+        std::size_t cols() const noexcept;
         std::vector<T>::const_iterator begin() const noexcept;
         std::vector<T>::iterator begin() noexcept;
         std::vector<T>::const_iterator end() const noexcept;
@@ -34,7 +43,7 @@ namespace math {
         Matrix hadamard(const Matrix &other) const;
         Matrix &hadamard_inplace(const Matrix &other);
 
-        T at(std::size_t i, std::size_t j) const;
+        const T &at(std::size_t i, std::size_t j) const;
         T &at(std::size_t i, std::size_t j);
 
         Matrix operator-() const;
@@ -56,27 +65,398 @@ namespace math {
         
         bool operator==(const Matrix &other) const;
 
-        T operator()(std::size_t i, std::size_t j) const noexcept;
+        const T &operator()(std::size_t i, std::size_t j) const noexcept;
         T &operator()(std::size_t i, std::size_t j) noexcept;
         
-        T operator[](std::size_t i) const noexcept;
+        const T &operator[](std::size_t i) const noexcept;
         T &operator[](std::size_t i) noexcept;
 
     private:
         static constexpr T tolerance = []() {
-            if constexpr (sizeof(T) <= 4) return static_cast<T>(1e-5);
-            return static_cast<T>(1e-9);
+            if constexpr (sizeof(T) <= 4) return T{1e-5};
+            return T{1e-9};
         }();
         static constexpr std::size_t block_size = []() {
-            if constexpr (sizeof(T) <= 4) return 96;
-            if constexpr (sizeof(T) <= 8) return 64;
-            return -1;
+            if constexpr (sizeof(T) <= 4) return std::size_t{96};
+            if constexpr (sizeof(T) <= 8) return std::size_t{64};
+            return std::numeric_limits<std::size_t>::max() / 2;
         }();
 
-        std::size_t rows;
-        std::size_t cols;
+        std::size_t rows_;
+        std::size_t cols_;
         std::vector<T> data;
 
         Matrix &transpose_square();
     };
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::identity(std::size_t rows, std::size_t cols) {
+        Matrix<T> result_mat(rows, cols);
+        for (std::size_t i = 0; i < std::min(rows, cols); i++) {
+            result_mat(i, i) = T{1};
+        }
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::random(std::size_t rows, std::size_t cols) {
+        return random(rows, cols, T{0}, T{1});
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::random(std::size_t rows, std::size_t cols, T min, T max) {
+        std::mt19937 &rng = detail::get_rng();
+        std::uniform_real_distribution<T> dist(min, max);
+
+        Matrix result_mat(rows, cols);
+        std::generate(
+            result_mat.begin(), result_mat.end(),
+            [&dist, &rng]() { return dist(rng); }
+        );
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T>::Matrix(std::size_t rows, std::size_t cols)
+        : rows_(rows)
+        , cols_(cols)
+        , data(rows * cols) {}
+
+    template<std::floating_point T>
+    template<std::input_iterator InputIt>
+    Matrix<T>::Matrix(std::size_t rows, std::size_t cols, InputIt first, InputIt last)
+        : rows_(rows)
+        , cols_(cols)
+        , data(first, last) {}
+
+    template<std::floating_point T>
+    Matrix<T>::Matrix(const Vector<T> &v)
+        : rows_(v.size())
+        , cols_(1)
+        , data(v.begin(), v.end()) {}
+
+    template<std::floating_point T>
+    Matrix<T>::Matrix(std::initializer_list<std::initializer_list<T>> init) {
+
+    }
+
+    template<std::floating_point T>
+    Matrix<T>::Matrix(std::vector<std::vector<T>> init) {
+
+    }
+
+    template<std::floating_point T>
+    std::size_t Matrix<T>::size() const noexcept {
+        return data.size();
+    }
+
+    template<std::floating_point T>
+    std::size_t Matrix<T>::rows() const noexcept {
+        return rows_;
+    }
+
+    template<std::floating_point T>
+    std::size_t Matrix<T>::cols() const noexcept {
+        return cols_;
+    }
+
+    template<std::floating_point T>
+    std::vector<T>::const_iterator Matrix<T>::begin() const noexcept {
+        return data.begin();
+    }
+
+    template<std::floating_point T>
+    std::vector<T>::iterator Matrix<T>::begin() noexcept {
+        return data.begin();
+    }
+
+    template<std::floating_point T>
+    std::vector<T>::const_iterator Matrix<T>::end() const noexcept {
+        return data.end();
+    }
+
+    template<std::floating_point T>
+    std::vector<T>::iterator Matrix<T>::end() noexcept {
+        return data.end();
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::transposed() const {
+        Matrix<T> result_mat(cols_, rows_);
+        for (std::size_t ii = 0; ii < rows_; ii += block_size) {
+            for (std::size_t jj = 0; jj < cols_; jj += block_size) {
+                for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
+                    for (std::size_t j = jj; j < std::min(jj + block_size, cols_); j++) {
+                        result_mat(j, i) = (*this)(i, j);
+                    }
+                }
+            }
+        }
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> &Matrix<T>::transpose() {
+        if (rows_ == cols_) {
+            return this->transpose_square();
+        }
+        return *this = this->transposed();
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::hadamard(const Matrix<T> &other) const {
+        Matrix<T> result_mat(rows_, cols_);
+        std::transform(
+            data.begin(), data.end(),
+            other.data.begin(),
+            result_mat.data.begin(),
+            [](T a, T b) { return a * b; }
+        );
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> &Matrix<T>::hadamard_inplace(const Matrix<T> &other) {
+        std::transform(
+            data.begin(), data.end(),
+            other.data.begin(),
+            data.begin(),
+            [](T a, T b) { return a * b; }
+        );
+        return *this;
+    }
+
+    template<std::floating_point T>
+    const T &Matrix<T>::at(std::size_t i, std::size_t j) const {
+        return data.at(i * cols_ + j);
+    }
+
+    template<std::floating_point T>
+    T &Matrix<T>::at(std::size_t i, std::size_t j) {
+        return data.at(i * cols_ + j);
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::operator-() const {
+        Matrix<T> result_mat(rows_, cols_);
+        std::transform(
+            data.begin(), data.end(),
+            result_mat.data.begin(),
+            [](T x) { return -x; }
+        );
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::operator+(const Matrix<T> &other) const {
+        Matrix<T> result_mat(rows_, cols_);
+        std::transform(
+            data.begin(), data.end(),
+            other.data.begin(),
+            result_mat.data.begin(),
+            [](T a, T b) { return a + b; }
+        );
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &other) {
+        std::transform(
+            data.begin(), data.end(),
+            other.data.begin(),
+            data.begin(),
+            [](T a, T b) { return a + b; }
+        );
+        return *this;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::operator-(const Matrix<T> &other) const {
+        Matrix<T> result_mat(rows_, cols_);
+        std::transform(
+            data.begin(), data.end(),
+            other.data.begin(),
+            result_mat.data.begin(),
+            [](T a, T b) { return a - b; }
+        );
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> &Matrix<T>::operator-=(const Matrix<T> &other) {
+        std::transform(
+            data.begin(), data.end(),
+            other.data.begin(),
+            data.begin(),
+            [](T a, T b) { return a - b; }
+        );
+        return *this;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::operator*(T k) const {
+        Matrix<T> result_mat(rows_, cols_);
+        std::transform(
+            data.begin(), data.end(),
+            result_mat.data.begin(),
+            [k](T x) { return x * k; }
+        );
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Vector<T> Matrix<T>::operator*(const Vector<T> &v) const {
+        Vector<T> result_vec(rows_);
+        for (std::size_t ii = 0; ii < rows_; ii += block_size) {
+            for (std::size_t jj = 0; jj < cols_; jj += block_size) {
+                for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
+                    result_vec[i] += std::inner_product(
+                        this->begin() + i * cols_ + jj,
+                        this->begin() + i * cols_ + std::min(jj + block_size, cols_),
+                        v.begin() + jj,
+                        T{0}
+                    );
+                }
+            }
+        }
+        return result_vec;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::operator*(const Matrix<T> &other) const {
+        Matrix result_mat(rows_, other.cols_);
+        Matrix<T> other_T = other.transposed();
+        for (std::size_t ii = 0; ii < rows_; ii += block_size) {
+            for (std::size_t jj = 0; jj < other.cols_; jj += block_size) {
+                for (std::size_t kk = 0; kk < cols_; kk += block_size) {
+                    for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
+                        for (std::size_t j = jj; j < std::min(jj + block_size, other.cols_); j++) {
+                            result_mat(i, j) += std::inner_product(
+                                this->begin() + i * cols_ + kk,
+                                this->begin() + i * cols_ + std::min(kk + block_size, cols_),
+                                other_T.begin() + j * other_T.cols_ + kk,
+                                T{0}
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> operator*(T k, const Matrix<T> &m) {
+        Matrix<T> result_mat(m.rows_, m.cols_);
+        std::transform(
+            m.data.begin(), m.data.end(),
+            result_mat.data.begin(),
+            [k](T x) { return x * k; }
+        );
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> operator*(const Vector<T> &v, const Matrix<T> &m) {
+        Matrix result_mat(v.size(), m.cols_);
+        for (std::size_t i = 0; i < v.size(); i++) {
+            for (std::size_t j = 0; j < m.cols_; j++) {
+                result_mat(i, j) = v[i] * m(0, j);
+            }
+        }
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> &Matrix<T>::operator*=(T k) {
+        std::transform(
+            data.begin(), data.end(),
+            data.begin(),
+            [k](T x) { return x * k; }
+        );
+        return *this;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> &Matrix<T>::operator*=(const Matrix<T> &other) {
+        return *this = *this * other;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> Matrix<T>::operator/(T k) const {
+        Matrix<T> result_mat(rows_, cols_);
+        T k_inv = T{1} / k;
+        std::transform(
+            data.begin(), data.end(),
+            result_mat.data.begin(),
+            [k_inv](T x) { return x * k_inv; }
+        );
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    Matrix<T> &Matrix<T>::operator/=(T k) {
+        T k_inv = T{1} / k;
+        std::transform(
+            data.begin(), data.end(),
+            data.begin(),
+            [k_inv](T x) { return x * k_inv; }
+        );
+        return *this;
+    }
+
+    template<std::floating_point T>
+    bool Matrix<T>::operator==(const Matrix<T> &other) const {
+        if (rows_ != other.rows_ || cols_ != other.cols_) {
+            return false;
+        }
+
+        return std::equal(
+            data.begin(), data.end(),
+            other.data.begin(),
+            [](T a, T b) { return std::abs(a - b) < tolerance; }
+        );
+    }
+
+    template<std::floating_point T>
+    const T &Matrix<T>::operator()(std::size_t i, std::size_t j) const noexcept {
+        return data[i * cols_ + j];
+    }
+
+    template<std::floating_point T>
+    T &Matrix<T>::operator()(std::size_t i, std::size_t j) noexcept {
+        return data[i * cols_ + j];
+    }
+
+    template<std::floating_point T>
+    const T &Matrix<T>::operator[](std::size_t i) const noexcept {
+        return data[i];
+    }
+
+    template<std::floating_point T>
+    T &Matrix<T>::operator[](std::size_t i) noexcept {
+        return data[i];
+    }
+
+    template<std::floating_point T>
+    Matrix<T> &Matrix<T>::transpose_square() {
+        for (std::size_t ii = 0; ii < rows_; ii += block_size) {
+            for (std::size_t jj = 0; jj < cols_; jj += block_size) {
+                if (ii != jj) {
+                    for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
+                        for (std::size_t j = jj; j < std::min(jj + block_size, cols_); j++) {
+                            std::swap((*this)(i, j), (*this)(j, i));
+                        }
+                    }
+                } else {
+                    for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
+                        for (std::size_t j = i + 1; j < std::min(jj + block_size, cols_); j++) {
+                            std::swap((*this)(i, j), (*this)(j, i));
+                        }
+                    }
+                }
+            }
+        }
+        return *this;
+    }
 }

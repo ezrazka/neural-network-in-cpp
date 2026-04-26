@@ -11,6 +11,7 @@
 #include <limits>
 #include <numeric>
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 namespace math {
@@ -82,6 +83,12 @@ namespace math {
             return std::numeric_limits<std::size_t>::max() / 2;
         }();
 
+        static void throw_non_rectangular();
+        static void throw_zero_division();
+        static void throw_size_mismatch(std::size_t n, std::size_t m);
+        static void throw_inner_dimension_mismatch(std::size_t cols, std::size_t rows);
+        static void throw_shape_mismatch(std::size_t rows_1, std::size_t cols_1, std::size_t rows_2, std::size_t cols_2);
+
         std::size_t rows_;
         std::size_t cols_;
         std::vector<T> data;
@@ -127,7 +134,18 @@ namespace math {
     Matrix<T>::Matrix(std::size_t rows, std::size_t cols, InputIt first, InputIt last)
         : rows_(rows)
         , cols_(cols)
-        , data(first, last) {}
+        , data(rows * cols)
+    {
+        std::size_t index = 0;
+        for (; first != last && index < rows_ * cols_; first++) {
+            data[index] = *first;
+            index++;
+        }
+
+        if (index != rows_ * cols_) {
+            throw_size_mismatch(index, rows_ * cols_);
+        }
+    }
 
     template<std::floating_point T>
     Matrix<T>::Matrix(const Vector<T> &v)
@@ -136,13 +154,49 @@ namespace math {
         , data(v.begin(), v.end()) {}
 
     template<std::floating_point T>
-    Matrix<T>::Matrix(std::initializer_list<std::initializer_list<T>> init) {
+    Matrix<T>::Matrix(std::initializer_list<std::initializer_list<T>> init)
+        : rows_(init.size())
+        , cols_(init.size() > 0 ? init.begin()->size() : 0)
+        , data(rows_ * cols_)
+    {
+        std::size_t index = 0;
+        for (const std::initializer_list<T> &row : init) {
+            for (T value : row) {
+                if (row.size() != cols_) {
+                    throw_non_rectangular();
+                }
 
+                data[index] = value;
+                index++;
+            }
+        }
+
+        if (index != rows_ * cols_) {
+            throw_size_mismatch(index, rows_ * cols_);
+        }
     }
 
     template<std::floating_point T>
-    Matrix<T>::Matrix(std::vector<std::vector<T>> init) {
+    Matrix<T>::Matrix(std::vector<std::vector<T>> init)
+        : rows_(init.size())
+        , cols_(init.size() > 0 ? init.begin()->size() : 0)
+        , data(rows_ * cols_)
+    {
+        std::size_t index = 0;
+        for (const std::vector<T> &row : init) {
+            if (row.size() != cols_) {
+                throw_non_rectangular();
+            }
 
+            for (T value : row) {
+                data[index] = value;
+                index++;
+            }
+        }
+
+        if (index != rows_ * cols_) {
+            throw_size_mismatch(index, rows_ * cols_);
+        }
     }
 
     template<std::floating_point T>
@@ -205,6 +259,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::hadamard(const Matrix<T> &other) const {
+        if (rows_ != other.rows_ || cols_ != other.cols_) {
+            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
+        }
+
         Matrix<T> result_mat(rows_, cols_);
         std::transform(
             data.begin(), data.end(),
@@ -217,6 +275,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::hadamard_inplace(const Matrix<T> &other) {
+        if (rows_ != other.rows_ || cols_ != other.cols_) {
+            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
+        }
+
         std::transform(
             data.begin(), data.end(),
             other.data.begin(),
@@ -249,6 +311,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator+(const Matrix<T> &other) const {
+        if (rows_ != other.rows_ || cols_ != other.cols_) {
+            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
+        }
+
         Matrix<T> result_mat(rows_, cols_);
         std::transform(
             data.begin(), data.end(),
@@ -261,6 +327,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &other) {
+        if (rows_ != other.rows_ || cols_ != other.cols_) {
+            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
+        }
+
         std::transform(
             data.begin(), data.end(),
             other.data.begin(),
@@ -272,6 +342,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator-(const Matrix<T> &other) const {
+        if (rows_ != other.rows_ || cols_ != other.cols_) {
+            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
+        }
+
         Matrix<T> result_mat(rows_, cols_);
         std::transform(
             data.begin(), data.end(),
@@ -284,6 +358,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::operator-=(const Matrix<T> &other) {
+        if (rows_ != other.rows_ || cols_ != other.cols_) {
+            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
+        }
+
         std::transform(
             data.begin(), data.end(),
             other.data.begin(),
@@ -306,6 +384,10 @@ namespace math {
 
     template<std::floating_point T>
     Vector<T> Matrix<T>::operator*(const Vector<T> &v) const {
+        if (cols_ != v.size()) {
+            throw_inner_dimension_mismatch(cols_, v.size());
+        }
+
         Vector<T> result_vec(rows_);
         for (std::size_t ii = 0; ii < rows_; ii += block_size) {
             for (std::size_t jj = 0; jj < cols_; jj += block_size) {
@@ -324,6 +406,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator*(const Matrix<T> &other) const {
+        if (cols_ != other.rows_) {
+            throw_inner_dimension_mismatch(cols_, other.rows_);
+        }
+
         Matrix result_mat(rows_, other.cols_);
         Matrix<T> other_T = other.transposed();
         for (std::size_t ii = 0; ii < rows_; ii += block_size) {
@@ -358,6 +444,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> operator*(const Vector<T> &v, const Matrix<T> &m) {
+        if (m.rows_ != 1) {
+            Matrix<T>::throw_inner_dimension_mismatch(1, m.rows_);
+        }
+
         Matrix result_mat(v.size(), m.cols_);
         for (std::size_t i = 0; i < v.size(); i++) {
             for (std::size_t j = 0; j < m.cols_; j++) {
@@ -384,6 +474,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator/(T k) const {
+        if (k < tolerance) {
+            throw_zero_division();
+        }
+
         Matrix<T> result_mat(rows_, cols_);
         T k_inv = T{1} / k;
         std::transform(
@@ -396,6 +490,10 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::operator/=(T k) {
+        if (k < tolerance) {
+            throw_zero_division();
+        }
+
         T k_inv = T{1} / k;
         std::transform(
             data.begin(), data.end(),
@@ -410,7 +508,6 @@ namespace math {
         if (rows_ != other.rows_ || cols_ != other.cols_) {
             return false;
         }
-
         return std::equal(
             data.begin(), data.end(),
             other.data.begin(),
@@ -436,6 +533,37 @@ namespace math {
     template<std::floating_point T>
     T &Matrix<T>::operator[](std::size_t i) noexcept {
         return data[i];
+    }
+
+    template<std::floating_point T>
+    void Matrix<T>::throw_zero_division() {
+        throw std::domain_error("Division by zero");
+    }
+
+    template<std::floating_point T>
+    void Matrix<T>::throw_non_rectangular() {
+        throw std::invalid_argument("Input contains inconsistent row sizes");
+    }
+
+    template<std::floating_point T>
+    void Matrix<T>::throw_size_mismatch(std::size_t n, std::size_t m) {
+        throw std::invalid_argument(
+            std::format("Size mismatch: {} and {}", n, m)
+        );
+    }
+
+    template<std::floating_point T>
+    void Matrix<T>::throw_inner_dimension_mismatch(std::size_t cols, std::size_t rows) {
+        throw std::invalid_argument(
+            std::format("Inner dimension mismatch: {} and {}", cols, rows)
+        );
+    }
+
+    template<std::floating_point T>
+    void Matrix<T>::throw_shape_mismatch(std::size_t rows_1, std::size_t cols_1, std::size_t rows_2, std::size_t cols_2) {
+        throw std::invalid_argument(
+            std::format("Shape mismatch: ({}, {}) and ({}, {})", rows_1, cols_1, rows_2, cols_2)
+        );
     }
 
     template<std::floating_point T>

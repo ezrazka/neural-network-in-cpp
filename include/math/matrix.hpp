@@ -570,17 +570,10 @@ namespace math {
     Matrix<T> &Matrix<T>::transpose_square() {
         for (std::size_t ii = 0; ii < rows_; ii += block_size) {
             for (std::size_t jj = 0; jj < cols_; jj += block_size) {
-                if (ii != jj) {
-                    for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
-                        for (std::size_t j = jj; j < std::min(jj + block_size, cols_); j++) {
-                            std::swap((*this)(i, j), (*this)(j, i));
-                        }
-                    }
-                } else {
-                    for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
-                        for (std::size_t j = i + 1; j < std::min(jj + block_size, cols_); j++) {
-                            std::swap((*this)(i, j), (*this)(j, i));
-                        }
+                for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
+                    int j_start = (ii == jj ? jj : i + 1);
+                    for (std::size_t j = j_start; j < std::min(jj + block_size, cols_); j++) {
+                        std::swap((*this)(i, j), (*this)(j, i));
                     }
                 }
             }

@@ -5,8 +5,7 @@
 
 namespace nn {
     template<std::floating_point T>
-    class Parameter {
-    public:
+    struct Parameter {
         std::reference_wrapper<T> value;
         std::reference_wrapper<T> grad;
     };

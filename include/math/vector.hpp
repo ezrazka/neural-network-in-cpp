@@ -64,8 +64,8 @@ namespace math {
 
         static void throw_zero_division();
         static void throw_null_vector();
-        static void throw_not_3d(std::size_t i);
-        static void throw_size_mismatch(std::size_t i, std::size_t j);
+        static void throw_not_3d(std::size_t n);
+        static void throw_size_mismatch(std::size_t n, std::size_t m);
 
         std::vector<T> data;
     };
@@ -410,16 +410,16 @@ namespace math {
     }
 
     template<std::floating_point T>
-    void Vector<T>::throw_not_3d(std::size_t i) {
+    void Vector<T>::throw_not_3d(std::size_t n) {
         throw std::invalid_argument(
-            std::format("Vector must be 3-dimensional: got {}", i)
+            std::format("Vector must be 3-dimensional: got {}", n)
         );
     }
 
     template<std::floating_point T>
-    void Vector<T>::throw_size_mismatch(std::size_t i, std::size_t j) {
+    void Vector<T>::throw_size_mismatch(std::size_t n, std::size_t m) {
         throw std::invalid_argument(
-            std::format("Size mismatch: {} and {}", i, j)
+            std::format("Size mismatch: {} and {}", n, m)
         );
     }
 }

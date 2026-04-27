@@ -13,9 +13,16 @@
 #include <random>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace math {
+    template <typename F, typename T>
+    concept BinaryOp = (
+        std::regular_invocable<F, T, T> &&
+        std::convertible_to<std::invoke_result_t<F, T, T>, T>
+    );
+
     template<std::floating_point T>
     class Matrix {
     public:
@@ -95,6 +102,10 @@ namespace math {
         std::vector<T> data;
 
         Matrix &transpose_square();
+        template <BinaryOp<T> F>
+        Matrix elementwise(const Matrix<T> &other, F op) const;
+        template <BinaryOp<T> F>
+        Matrix &elementwise_eq(const Matrix<T> &other, F op);
     };
 
     template<std::floating_point T>
@@ -260,33 +271,12 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::hadamard(const Matrix<T> &other) const {
-        if (rows_ != other.rows_ || cols_ != other.cols_) {
-            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
-        }
-
-        Matrix<T> result_mat(rows_, cols_);
-        std::transform(
-            data.begin(), data.end(),
-            other.data.begin(),
-            result_mat.data.begin(),
-            [](T a, T b) { return a * b; }
-        );
-        return result_mat;
+        return elementwise(other, [](T a, T b) { return a * b; });
     }
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::hadamard_inplace(const Matrix<T> &other) {
-        if (rows_ != other.rows_ || cols_ != other.cols_) {
-            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
-        }
-
-        std::transform(
-            data.begin(), data.end(),
-            other.data.begin(),
-            data.begin(),
-            [](T a, T b) { return a * b; }
-        );
-        return *this;
+        return elementwise_eq(other, [](T a, T b) { return a * b; });
     }
 
     template<std::floating_point T>
@@ -312,64 +302,22 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator+(const Matrix<T> &other) const {
-        if (rows_ != other.rows_ || cols_ != other.cols_) {
-            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
-        }
-
-        Matrix<T> result_mat(rows_, cols_);
-        std::transform(
-            data.begin(), data.end(),
-            other.data.begin(),
-            result_mat.data.begin(),
-            [](T a, T b) { return a + b; }
-        );
-        return result_mat;
+        return elementwise(other, [](T a, T b) { return a + b; });
     }
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &other) {
-        if (rows_ != other.rows_ || cols_ != other.cols_) {
-            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
-        }
-
-        std::transform(
-            data.begin(), data.end(),
-            other.data.begin(),
-            data.begin(),
-            [](T a, T b) { return a + b; }
-        );
-        return *this;
+        return elementwise_eq(other, [](T a, T b) { return a + b; });
     }
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator-(const Matrix<T> &other) const {
-        if (rows_ != other.rows_ || cols_ != other.cols_) {
-            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
-        }
-
-        Matrix<T> result_mat(rows_, cols_);
-        std::transform(
-            data.begin(), data.end(),
-            other.data.begin(),
-            result_mat.data.begin(),
-            [](T a, T b) { return a - b; }
-        );
-        return result_mat;
+        return elementwise(other, [](T a, T b) { return a - b; });
     }
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::operator-=(const Matrix<T> &other) {
-        if (rows_ != other.rows_ || cols_ != other.cols_) {
-            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
-        }
-
-        std::transform(
-            data.begin(), data.end(),
-            other.data.begin(),
-            data.begin(),
-            [](T a, T b) { return a - b; }
-        );
-        return *this;
+        return elementwise_eq(other, [](T a, T b) { return a - b; });
     }
 
     template<std::floating_point T>
@@ -582,5 +530,56 @@ namespace math {
             }
         }
         return *this;
+    }
+
+    template<std::floating_point T>
+    template <BinaryOp<T> F>
+    Matrix<T> Matrix<T>::elementwise(const Matrix<T> &other, F op) const {
+        if (!(
+            (rows_ == other.rows_ || rows_ == 1 || other.rows_ == 1) &&
+            (cols_ == other.cols_ || cols_ == 1 || other.cols_ == 1)
+        )) {
+            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
+        }
+
+        std::size_t out_rows = std::max(rows_, other.rows_);
+        std::size_t out_cols = std::max(cols_, other.cols_);
+        Matrix<T> result_mat(out_rows, out_cols);
+        for (std::size_t i = 0; i < out_rows; i++) {
+            std::size_t i_1 = (rows_ == 1 ? 0 : i);
+            std::size_t i_2 = (other.rows_ == 1 ? 0 : i);
+            for (std::size_t j = 0; j < out_cols; j++) {
+                std::size_t j_1 = (cols_ == 1 ? 0 : j);
+                std::size_t j_2 = (other.cols_ == 1 ? 0 : j);
+                (result_mat)(i, j) = op((*this)(i_1, j_1), other(i_2, j_2));
+            }
+        }
+        return result_mat;
+    }
+
+    template<std::floating_point T>
+    template <BinaryOp<T> F>
+    Matrix<T> &Matrix<T>::elementwise_eq(const Matrix<T> &other, F op) {
+        if (!(
+            (rows_ == other.rows_ || rows_ == 1 || other.rows_ == 1) &&
+            (cols_ == other.cols_ || cols_ == 1 || other.cols_ == 1)
+        )) {
+            throw_shape_mismatch(rows_, cols_, other.rows_, other.cols_);
+        }
+
+        std::size_t out_rows = std::max(rows_, other.rows_);
+        std::size_t out_cols = std::max(cols_, other.cols_);
+        if (rows_ == out_rows && cols_ == out_cols) {
+            for (std::size_t i_1 = 0; i_1 < rows_; i_1++) {
+                std::size_t i_2 = (other.rows_ == 1 ? 0 : i_1);
+                for (std::size_t j_1 = 0; j_1 < cols_; j_1++) {
+                    std::size_t j_2 = (other.cols_ == 1 ? 0 : j_1);
+                    (*this)(i_1, j_1) = op((*this)(i_1, j_1), other(i_2, j_2));
+                }
+            }
+            return *this;
+        }
+
+        return (*this) = elementwise(other, op);
     }
 }

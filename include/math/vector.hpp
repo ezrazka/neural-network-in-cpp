@@ -2,9 +2,9 @@
 
 #include <algorithm>
 #include <concepts>
-#include <format>
 #include <initializer_list>
 #include <numeric>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -411,15 +411,15 @@ namespace math {
 
     template<std::floating_point T>
     void Vector<T>::throw_not_3d(std::size_t n) {
-        throw std::invalid_argument(
-            std::format("Vector must be 3-dimensional: got {}", n)
-        );
+        std::ostringstream oss;
+        oss << "Vector must be 3-dimensional: got " << n;
+        throw std::invalid_argument(oss.str());
     }
 
     template<std::floating_point T>
     void Vector<T>::throw_size_mismatch(std::size_t n, std::size_t m) {
-        throw std::invalid_argument(
-            std::format("Size mismatch: {} and {}", n, m)
-        );
+        std::ostringstream oss;
+        oss << "Size mismatch: " << n << " and " << m;
+        throw std::invalid_argument(oss.str());
     }
 }

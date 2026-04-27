@@ -11,6 +11,7 @@
 #include <limits>
 #include <numeric>
 #include <random>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -536,35 +537,37 @@ namespace math {
     }
 
     template<std::floating_point T>
-    void Matrix<T>::throw_zero_division() {
-        throw std::domain_error("Division by zero");
-    }
+        void Matrix<T>::throw_zero_division() {
+            throw std::domain_error("Division by zero");
+        }
 
     template<std::floating_point T>
-    void Matrix<T>::throw_non_rectangular() {
-        throw std::invalid_argument("Input contains inconsistent row sizes");
-    }
+        void Matrix<T>::throw_non_rectangular() {
+            throw std::invalid_argument("Input contains inconsistent row sizes");
+        }
 
     template<std::floating_point T>
-    void Matrix<T>::throw_size_mismatch(std::size_t n, std::size_t m) {
-        throw std::invalid_argument(
-            std::format("Size mismatch: {} and {}", n, m)
-        );
-    }
+        void Matrix<T>::throw_size_mismatch(std::size_t n, std::size_t m) {
+            std::ostringstream oss;
+            oss << "Size mismatch: " << n << " and " << m;
+            throw std::invalid_argument(oss.str());
+        }
 
     template<std::floating_point T>
-    void Matrix<T>::throw_inner_dimension_mismatch(std::size_t cols, std::size_t rows) {
-        throw std::invalid_argument(
-            std::format("Inner dimension mismatch: {} and {}", cols, rows)
-        );
-    }
+        void Matrix<T>::throw_inner_dimension_mismatch(std::size_t cols, std::size_t rows) {
+            std::ostringstream oss;
+            oss << "Inner dimension mismatch: " << cols << " and " << rows;
+            throw std::invalid_argument(oss.str());
+        }
 
     template<std::floating_point T>
-    void Matrix<T>::throw_shape_mismatch(std::size_t rows_1, std::size_t cols_1, std::size_t rows_2, std::size_t cols_2) {
-        throw std::invalid_argument(
-            std::format("Shape mismatch: ({}, {}) and ({}, {})", rows_1, cols_1, rows_2, cols_2)
-        );
-    }
+        void Matrix<T>::throw_shape_mismatch(std::size_t rows_1, std::size_t cols_1, std::size_t rows_2, std::size_t cols_2) {
+            std::ostringstream oss;
+            oss << "Shape mismatch: ("
+                << rows_1 << ", " << cols_1 << ") and ("
+                << rows_2 << ", " << cols_2 << ")";
+            throw std::invalid_argument(oss.str());
+        }
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::transpose_square() {

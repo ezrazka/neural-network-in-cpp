@@ -7,6 +7,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <initializer_list>
 #include <limits>
 #include <numeric>
@@ -105,7 +106,7 @@ namespace math {
         template <BinaryOp<T> F>
         Matrix elementwise(const Matrix<T> &other, F op) const;
         template <BinaryOp<T> F>
-        Matrix &elementwise_eq(const Matrix<T> &other, F op);
+        Matrix &elementwise_inplace(const Matrix<T> &other, F op);
     };
 
     template<std::floating_point T>
@@ -271,12 +272,12 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::hadamard(const Matrix<T> &other) const {
-        return elementwise(other, [](T a, T b) { return a * b; });
+        return elementwise(other, std::multiplies<>{});
     }
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::hadamard_inplace(const Matrix<T> &other) {
-        return elementwise_eq(other, [](T a, T b) { return a * b; });
+        return elementwise_inplace(other, std::multiplies<>{});
     }
 
     template<std::floating_point T>
@@ -302,22 +303,22 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator+(const Matrix<T> &other) const {
-        return elementwise(other, [](T a, T b) { return a + b; });
+        return elementwise(other, std::plus<>{});
     }
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &other) {
-        return elementwise_eq(other, [](T a, T b) { return a + b; });
+        return elementwise_inplace(other, std::plus<>{});
     }
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator-(const Matrix<T> &other) const {
-        return elementwise(other, [](T a, T b) { return a - b; });
+        return elementwise(other, std::minus<>{});
     }
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::operator-=(const Matrix<T> &other) {
-        return elementwise_eq(other, [](T a, T b) { return a - b; });
+        return elementwise_inplace(other, std::minus<>{});
     }
 
     template<std::floating_point T>
@@ -559,7 +560,7 @@ namespace math {
 
     template<std::floating_point T>
     template <BinaryOp<T> F>
-    Matrix<T> &Matrix<T>::elementwise_eq(const Matrix<T> &other, F op) {
+    Matrix<T> &Matrix<T>::elementwise_inplace(const Matrix<T> &other, F op) {
         if (!(
             (rows_ == other.rows_ || rows_ == 1 || other.rows_ == 1) &&
             (cols_ == other.cols_ || cols_ == 1 || other.cols_ == 1)

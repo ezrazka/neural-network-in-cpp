@@ -20,6 +20,7 @@ namespace nn {
     template<std::floating_point T>
     math::Matrix<T> Tanh<T>::forward(const math::Matrix<T> &input) {
         cached_input = input;
+
         math::Matrix<T> output = input;
         std::transform(
             input.begin(), input.end(),

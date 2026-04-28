@@ -51,14 +51,7 @@ namespace nn {
     math::Matrix<T> Linear<T>::forward(const math::Matrix<T> &input) {
         cached_input = input;
 
-        math::Matrix<T> output = weights * input;
-        for (std::size_t i = 0; i < output.rows(); i++) {
-            for (std::size_t j = 0; j < output.cols(); j++) {
-                output(i, j) += biases(i, 0);
-            }
-        }
-
-        return output;
+        return weights * input + biases;
     }
 
     template<std::floating_point T>

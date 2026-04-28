@@ -24,12 +24,9 @@ namespace nn {
 
         T n = input.size();
         T eps = T{1e-7};
-        
-        return std::transform_reduce(
-            input.begin(), input.end(),
-            target.begin(),
-            T{0},
-            std::plus<>(),
+        return input.elementwise_reduce(
+            target,
+            T{0}, std::plus<>{},
             [eps](T pred, T y) {
                 T p = std::clamp(pred, eps, T{1} - eps);
                 return -(y * std::log(p) + (T{1} - y) * std::log(T{1} - p));
@@ -41,21 +38,12 @@ namespace nn {
     math::Matrix<T> BCELoss<T>::backward() {
         T n = this->cached_input.size();
         T eps = T{1e-7};
-
-        math::Matrix<T> grad_output(
-            this->cached_input.rows(),
-            this->cached_input.cols()
-        );
-        std::transform(
-            this->cached_input.begin(), this->cached_input.end(),
-            this->cached_target.begin(),
-            grad_output.begin(),
+        return this->cached_input.elementwise(
+            this->cached_target,
             [eps](T pred, T y) {
                 T p = std::clamp(pred, eps, T{1} - eps);
                 return (p - y) / (p * (T{1} - p));
             }
-        );
-        grad_output /= n;
-        return grad_output;
+        ) / n;
     }
 }

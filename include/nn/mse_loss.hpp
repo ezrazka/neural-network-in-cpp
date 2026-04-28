@@ -20,11 +20,9 @@ namespace nn {
         this->cached_target = target;
 
         T n = input.size();
-        return std::transform_reduce(
-            input.begin(), input.end(),
-            target.begin(),
-            T{0},
-            std::plus<>(),
+        return input.elementwise_reduce(
+            target,
+            T{0}, std::plus<>{},
             [](T pred, T y) {
                 T diff = pred - y;
                 return diff * diff;
@@ -35,6 +33,6 @@ namespace nn {
     template<std::floating_point T>
     math::Matrix<T> MSELoss<T>::backward() {
         T n = this->cached_input.size();
-        return (this->cached_input - this->cached_target) * T{2} / n;
+        return (this->cached_input - this->cached_target) * (T{2} / n);
     }
 }

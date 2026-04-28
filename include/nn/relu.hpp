@@ -21,24 +21,16 @@ namespace nn {
     math::Matrix<T> ReLU<T>::forward(const math::Matrix<T> &input) {
         cached_input = input;
 
-        math::Matrix<T> output = input;
-        std::transform(
-            input.begin(), input.end(),
-            output.begin(),
+        return input.elementwise(
             [](T x) { return std::max(T{0}, x); }
         );
-        return output;
     }
 
     template<std::floating_point T>
     math::Matrix<T> ReLU<T>::backward(const math::Matrix<T> &grad_output) {
-        math::Matrix<T> grad_input = grad_output;
-        std::transform(
-            grad_output.begin(), grad_output.end(),
-            cached_input.begin(),
-            grad_input.begin(),
-            [](T dy, T x) { return dy * (x > T{0} ? T{1} : T{0}); }
+        return grad_output.elementwise(
+            cached_input,
+            [](T dy, T x) { return dy * (x > T{0}); }
         );
-        return grad_input;
     }
 }

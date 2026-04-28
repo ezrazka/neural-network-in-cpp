@@ -68,7 +68,11 @@ namespace nn {
     template<std::floating_point T>
     math::Matrix<T> CrossEntropyLoss<T>::backward() {
         T n = this->cached_input.size();
-
-        return (cached_softmax - this->cached_target) / n;
+        return cached_softmax.elementwise(
+            this->cached_target,
+            [](T z, T y) {
+                return z - y;
+            }
+        ) / n;
     }
 }

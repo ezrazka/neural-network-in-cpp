@@ -33,6 +33,11 @@ namespace nn {
     template<std::floating_point T>
     math::Matrix<T> MSELoss<T>::backward() {
         T n = this->cached_input.size();
-        return (this->cached_input - this->cached_target) * (T{2} / n);
+        return this->cached_input.elementwise(
+            this->cached_target,
+            [](T pred, T y) {
+                return 2 * (pred - y);
+            }
+        ) / n;
     }
 }

@@ -19,6 +19,12 @@
 
 namespace math {
     template <typename F, typename T>
+    concept UnaryOp = (
+        std::regular_invocable<F, T> &&
+        std::convertible_to<std::invoke_result_t<F, T>, T>
+    );
+
+    template <typename F, typename T>
     concept BinaryOp = (
         std::regular_invocable<F, T, T> &&
         std::convertible_to<std::invoke_result_t<F, T, T>, T>
@@ -73,8 +79,12 @@ namespace math {
         Matrix operator/(T k) const;
         Matrix &operator/=(T k);
 
+        template <UnaryOp<T> TransformOp>
+        Matrix elementwise(TransformOp op) const;
         template <BinaryOp<T> TransformOp>
         Matrix elementwise(const Matrix<T> &other, TransformOp op) const;
+        template <UnaryOp<T> TransformOp>
+        Matrix<T> &elementwise_inplace(TransformOp op);
         template <BinaryOp<T> TransformOp>
         Matrix &elementwise_inplace(const Matrix<T> &other, TransformOp op);
         template <BinaryOp<T> ReduceOp, BinaryOp<T> TransformOp>
@@ -268,9 +278,9 @@ namespace math {
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::transpose() {
         if (rows_ == cols_) {
-            return this->transpose_square();
+            return transpose_square();
         }
-        return *this = this->transposed();
+        return *this = transposed();
     }
 
     template<std::floating_point T>
@@ -295,13 +305,9 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator-() const {
-        Matrix<T> result_mat(rows_, cols_);
-        std::transform(
-            data.begin(), data.end(),
-            result_mat.data.begin(),
-            [](T x) { return -x; }
+        return elementwise(
+            [](T x){ return -x; }
         );
-        return result_mat;
     }
 
     template<std::floating_point T>
@@ -326,13 +332,9 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> Matrix<T>::operator*(T k) const {
-        Matrix<T> result_mat(rows_, cols_);
-        std::transform(
-            data.begin(), data.end(),
-            result_mat.data.begin(),
-            [k](T x) { return x * k; }
+        return elementwise(
+            [k](T x){ return x * k; }
         );
-        return result_mat;
     }
 
     template<std::floating_point T>
@@ -346,8 +348,8 @@ namespace math {
             for (std::size_t jj = 0; jj < cols_; jj += block_size) {
                 for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
                     result_vec[i] += std::inner_product(
-                        this->begin() + i * cols_ + jj,
-                        this->begin() + i * cols_ + std::min(jj + block_size, cols_),
+                        begin() + i * cols_ + jj,
+                        begin() + i * cols_ + std::min(jj + block_size, cols_),
                         v.begin() + jj,
                         T{0}
                     );
@@ -371,8 +373,8 @@ namespace math {
                     for (std::size_t i = ii; i < std::min(ii + block_size, rows_); i++) {
                         for (std::size_t j = jj; j < std::min(jj + block_size, other.cols_); j++) {
                             result_mat(i, j) += std::inner_product(
-                                this->begin() + i * cols_ + kk,
-                                this->begin() + i * cols_ + std::min(kk + block_size, cols_),
+                                begin() + i * cols_ + kk,
+                                begin() + i * cols_ + std::min(kk + block_size, cols_),
                                 other_T.begin() + j * other_T.cols_ + kk,
                                 T{0}
                             );
@@ -386,13 +388,9 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> operator*(T k, const Matrix<T> &m) {
-        Matrix<T> result_mat(m.rows_, m.cols_);
-        std::transform(
-            m.data.begin(), m.data.end(),
-            result_mat.data.begin(),
-            [k](T x) { return x * k; }
+        return m.elementwise(
+            [k](T x){ return x * k; }
         );
-        return result_mat;
     }
 
     template<std::floating_point T>
@@ -412,12 +410,9 @@ namespace math {
 
     template<std::floating_point T>
     Matrix<T> &Matrix<T>::operator*=(T k) {
-        std::transform(
-            data.begin(), data.end(),
-            data.begin(),
-            [k](T x) { return x * k; }
+        return elementwise_inplace(
+            [k](T x){ return x * k; }
         );
-        return *this;
     }
 
     template<std::floating_point T>
@@ -431,14 +426,10 @@ namespace math {
             throw_zero_division();
         }
 
-        Matrix<T> result_mat(rows_, cols_);
         T k_inv = T{1} / k;
-        std::transform(
-            data.begin(), data.end(),
-            result_mat.data.begin(),
-            [k_inv](T x) { return x * k_inv; }
+        return elementwise(
+            [k_inv](T x){ return x * k_inv; }
         );
-        return result_mat;
     }
 
     template<std::floating_point T>
@@ -448,12 +439,21 @@ namespace math {
         }
 
         T k_inv = T{1} / k;
-        std::transform(
-            data.begin(), data.end(),
-            data.begin(),
-            [k_inv](T x) { return x * k_inv; }
+        return elementwise_inplace(
+            [k_inv](T x){ return x * k_inv; }
         );
-        return *this;
+    }
+
+    template<std::floating_point T>
+    template <UnaryOp<T> TransformOp>
+    Matrix<T> Matrix<T>::elementwise(TransformOp op) const {
+        Matrix<T> result_mat(rows_, cols_);
+        std::transform(
+            begin(), end(),
+            result_mat.begin(),
+            op
+        );
+        return result_mat;
     }
 
     template<std::floating_point T>
@@ -479,6 +479,17 @@ namespace math {
             }
         }
         return result_mat;
+    }
+
+    template<std::floating_point T>
+    template <UnaryOp<T> TransformOp>
+    Matrix<T> &Matrix<T>::elementwise_inplace(TransformOp op) {
+        std::transform(
+            begin(), end(),
+            begin(),
+            op
+        );
+        return *this;
     }
 
     template<std::floating_point T>

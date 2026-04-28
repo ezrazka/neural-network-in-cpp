@@ -31,14 +31,14 @@ namespace nn {
         std::vector<T> max_pred(input.cols(), -std::numeric_limits<T>::infinity());
         for (std::size_t i = 0; i < input.rows(); i++) {
             for (std::size_t j = 0; j < input.cols(); j++) {
-                max_pred[j] = std::max(max_pred[j], input[i][j]);
+                max_pred[j] = std::max(max_pred[j], input(i, j));
             }
         }
 
         std::vector<T> log_sum_exp(input.cols(), T{0});
         for (std::size_t i = 0; i < input.rows(); i++) {
             for (std::size_t j = 0; j < input.cols(); j++) {
-                log_sum_exp[j] += std::exp(input[i][j] - max_pred[j]);
+                log_sum_exp[j] += std::exp(input(i, j) - max_pred[j]);
             }
         }
         for (std::size_t j = 0; j < input.cols(); j++) {
@@ -70,8 +70,8 @@ namespace nn {
         T n = this->cached_input.size();
         return cached_softmax.elementwise(
             this->cached_target,
-            [](T z, T y) {
-                return z - y;
+            [](T p, T y) {
+                return p - y;
             }
         ) / n;
     }
